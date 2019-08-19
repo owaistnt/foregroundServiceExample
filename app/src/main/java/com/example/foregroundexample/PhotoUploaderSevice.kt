@@ -23,9 +23,11 @@ class PhotoUploaderSevice : Service() {
 
 
     val notificationId: Int
+    val notificationIdConclusion:Int
 
     init {
         notificationId = 111;
+        notificationIdConclusion=112
     }
 
     var notificationManager: NotificationManager? = null
@@ -36,12 +38,28 @@ class PhotoUploaderSevice : Service() {
         val notification = getSimpleNotification().build()
 
         startForeground(notificationId, notification)
-        val timer = object : CountDownTimer(10000, 1000) {
+        val initialTimer=object: CountDownTimer(2000, 1000){
+            override fun onFinish() {
+                val timer = getProgressCountDown()
+                timer.start()
+            }
+
+            override fun onTick(p0: Long) {}
+
+        }.start()
+
+
+        return START_NOT_STICKY
+    }
+
+    private fun getProgressCountDown(): CountDownTimer {
+        return object : CountDownTimer(10000, 1000) {
             override fun onFinish() {
                 val updateNotification = getProgressNotification().apply { setProgress(100, 50, true) }.build()
                 val updateNotification1 = getCustomNotification(context = applicationContext).build()
 
-                notificationManager?.notify(notificationId, updateNotification1)
+                notificationManager?.notify(notificationIdConclusion, updateNotification1)
+                stopSelf()
 
             }
 
@@ -57,10 +75,6 @@ class PhotoUploaderSevice : Service() {
             }
 
         }
-
-        timer.start()
-
-        return START_NOT_STICKY
     }
 
     private fun getSimpleNotification(): NotificationCompat.Builder {
@@ -89,13 +103,18 @@ class PhotoUploaderSevice : Service() {
         val notificationLayoutExpanded = RemoteViews(packageName, R.layout.layout_notification_complete)
 
         return NotificationCompat.Builder(context, NOTIFICATION_CHANNEL)
-            .setSmallIcon(R.drawable.ic_cloud_upload_black_24dp)
+            .setSmallIcon(R.drawable.ic_cloud_done_white_24dp)
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
             .setCustomContentView(notificationLayout)
             .setCustomBigContentView(notificationLayoutExpanded)
             .setContent(notificationLayout).apply {
-                priority = NotificationCompat.PRIORITY_HIGH
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    priority=NotificationManager.IMPORTANCE_HIGH
+                }else{
+                    priority = NotificationCompat.PRIORITY_HIGH
+                }
                 setDefaults(NotificationCompat.DEFAULT_ALL)
+                setAutoCancel(true)
             }
 
 
