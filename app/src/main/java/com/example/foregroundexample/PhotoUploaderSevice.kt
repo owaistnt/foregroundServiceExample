@@ -3,50 +3,55 @@ package com.example.foregroundexample
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.CountDownTimer
 import android.os.IBinder
 import android.util.Log
+import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.ContextCompat.getSystemService
+
 
 class PhotoUploaderSevice : Service() {
 
-    val NOTIFICATION_CHANNEL="photo_uploader_service"
+    val NOTIFICATION_CHANNEL = "photo_uploader_service"
+    val NOTIFICATION_CHANNEL_LOW = "photo_uploader_service_low"
+
 
     val notificationId: Int
+
     init {
-        notificationId=111;
+        notificationId = 111;
     }
 
-    var notificationManager: NotificationManager?=null
-
-    override fun onCreate() {
-        super.onCreate()
-
-    }
+    var notificationManager: NotificationManager? = null
 
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         createNotificationChannel()
-        notificationManager=ContextCompat.getSystemService(this, NotificationManager::class.java)
-        val notification= getSimpleNotification().build()
+        val notification = getSimpleNotification().build()
 
         startForeground(notificationId, notification)
-        val timer=object: CountDownTimer(10000, 1000){
+        val timer = object : CountDownTimer(10000, 1000) {
             override fun onFinish() {
-                    val updateNotification=getProgressNotification().apply { setProgress(100, 50, true) }.build()
-                    notificationManager?.notify(notificationId, updateNotification)
+                val updateNotification = getProgressNotification().apply { setProgress(100, 50, true) }.build()
+                val updateNotification1 = getCustomNotification(context = applicationContext).build()
+
+                notificationManager?.notify(notificationId, updateNotification1)
+
             }
 
             override fun onTick(p0: Long) {
-               val updatedNotificationBundle= getProgressNotification().apply {
-                   val progress=(((10000-p0)*100)/10000).toInt()
-                   Log.d("TEST", "Millis: $p0 Progress: $progress")
-                    setProgress(100, progress,  false)
+                val updatedNotificationBundle = getProgressNotification().apply {
+                    val progress = (((10000 - p0) * 100) / 10000).toInt()
+                    Log.d("TEST", "Millis: $p0 Progress: $progress")
+                    setProgress(100, progress, false)
                 }
+
                 notificationManager?.notify(notificationId, updatedNotificationBundle.build())
 
             }
@@ -59,21 +64,41 @@ class PhotoUploaderSevice : Service() {
     }
 
     private fun getSimpleNotification(): NotificationCompat.Builder {
-       return  NotificationCompat.Builder(this, NOTIFICATION_CHANNEL).apply {
+        return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL).apply {
             setContentTitle("Uploading  Photos")
             setContentText("initializing...")
             setSmallIcon(R.drawable.ic_cloud_upload_black_24dp)
+            priority = NotificationCompat.PRIORITY_HIGH
+            setDefaults(NotificationCompat.DEFAULT_SOUND or NotificationCompat.DEFAULT_SOUND)
         }
     }
 
 
     private fun getProgressNotification(): NotificationCompat.Builder {
-        return  NotificationCompat.Builder(this, NOTIFICATION_CHANNEL).apply {
+        return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_LOW).apply {
             setContentTitle("Uploading  Photos")
             setContentText("progress..")
             setSmallIcon(R.drawable.ic_cloud_upload_black_24dp)
+            priority = NotificationCompat.PRIORITY_LOW
 
         }
+    }
+
+    private fun getCustomNotification(context: Context): NotificationCompat.Builder {
+        val notificationLayout = RemoteViews(packageName, R.layout.layout_notification_complete)
+        val notificationLayoutExpanded = RemoteViews(packageName, R.layout.layout_notification_complete)
+
+        return NotificationCompat.Builder(context, NOTIFICATION_CHANNEL)
+            .setSmallIcon(R.drawable.ic_cloud_upload_black_24dp)
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            .setCustomContentView(notificationLayout)
+            .setCustomBigContentView(notificationLayoutExpanded)
+            .setContent(notificationLayout).apply {
+                priority = NotificationCompat.PRIORITY_HIGH
+                setDefaults(NotificationCompat.DEFAULT_ALL)
+            }
+
+
     }
 
 
@@ -82,10 +107,28 @@ class PhotoUploaderSevice : Service() {
     }
 
 
-    fun createNotificationChannel(){
+    private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val serviceChannel=  NotificationChannel(NOTIFICATION_CHANNEL, "Photo Uploader Service", NotificationManager.IMPORTANCE_DEFAULT)
-            (getSystemService(NotificationManager::class.java) as NotificationManager).createNotificationChannel(serviceChannel)
+            val serviceChannel = NotificationChannel(
+                NOTIFICATION_CHANNEL,
+                "Photo Uploader Service",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                setShowBadge(true)
+                lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
+            }
+
+            val serviceChannelLow = NotificationChannel(
+                NOTIFICATION_CHANNEL_LOW,
+                "Photo Uploader Service",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                setShowBadge(true)
+                lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
+            }
+            notificationManager = this.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager?.createNotificationChannel(serviceChannel)
+            notificationManager?.createNotificationChannel(serviceChannelLow)
         }
     }
 }
